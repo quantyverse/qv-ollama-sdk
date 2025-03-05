@@ -1,14 +1,13 @@
 # QV Ollama SDK
 
-A simple, Domain-Driven Design SDK for interacting with the Ollama API.
+A simple SDK for interacting with the Ollama API.
 
 ## Features
 
-- Clean, DDD-inspired architecture
 - Simple conversation management
 - Support for synchronous API calls
 - Streaming response support
-- Customizable model parameters
+- Explicit parameter handling (no unnecessary defaults)
 - User-friendly client interface
 
 ## Installation
@@ -28,7 +27,7 @@ client = OllamaChatClient(
     system_message="You are a helpful assistant."
 )
 
-# Simple chat
+# Simple chat - uses Ollama's default parameters
 response = client.chat("What is the capital of France?")
 print(response)
 
@@ -36,8 +35,10 @@ print(response)
 response = client.chat("And what is its population?")
 print(response)
 
-# Update parameters
-client.set_parameters(temperature=1.0)
+# Set specific parameters only when you need them
+client.temperature = 1.0  # Using property setter
+client.max_tokens = 500   # Using property setter
+client.set_parameters(num_ctx=2048)  # For multiple parameters
 
 # Get conversation history
 history = client.get_history()
@@ -55,6 +56,29 @@ for chunk in client.stream_chat("Explain quantum computing."):
     print(chunk, end="", flush=True)
 ```
 
+## Custom Model Parameters
+
+```python
+from qv_ollama_sdk import OllamaChatClient, ModelParameters
+
+# Initialize with specific parameters
+client = OllamaChatClient(
+    model_name="llama3",
+    parameters=ModelParameters(
+        temperature=0.7,    # Only parameters you explicitly set
+        max_tokens=500,     # will be sent to the Ollama API
+        repeat_penalty=1.1
+    )
+)
+
+# You can set model-specific parameters too
+client.set_parameters(
+    mirostat=1,           # These are model-specific parameters
+    mirostat_tau=4.0,     # that will be passed through to Ollama
+    seed=42               # if the model supports them
+)
+```
+
 ## Advanced Usage
 
 For more control, you can use the lower-level API:
@@ -67,19 +91,10 @@ conversation = Conversation(model_name="gemma2:2b")
 conversation.add_system_message("You are a helpful assistant.")
 conversation.add_user_message("What is the capital of France?")
 
-# Generate a response
+# Generate a response with specific parameters
 service = OllamaConversationService()
-parameters = ModelParameters(temperature=0.7)
+parameters = ModelParameters(temperature=0.7, num_ctx=2048)
 response = service.generate_response(conversation, parameters)
 
 print(response.content)
 ```
-
-## Requirements
-
-- Python 3.12+
-- Ollama 0.4.7+
-
-## License
-
-MIT

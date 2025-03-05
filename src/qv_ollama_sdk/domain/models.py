@@ -71,28 +71,91 @@ class Conversation:
         self.updated_at = datetime.now()
 
 
-@dataclass
 class ModelParameters:
-    """Parameters for model inference."""
-    temperature: float = 0.7
-    top_p: float = 0.9
-    top_k: int = 40
-    max_tokens: int = 2048
-    presence_penalty: float = 0.0
-    frequency_penalty: float = 0.0
-    stop_sequences: List[str] = field(default_factory=list)
+    """Parameters for controlling model generation behavior.
     
+    Only parameters that are explicitly set will be sent to the API.
+    The Ollama API will use its own defaults for any parameters not specified.
+    
+    Common parameters:
+        temperature: Controls randomness. Higher values make output more random.
+        max_tokens: Maximum number of tokens to generate.
+        top_p: Nucleus sampling parameter.
+        top_k: Limits token selection to top k options.
+        stop: Sequences where the model should stop generating.
+        frequency_penalty: Penalize frequent tokens.
+        presence_penalty: Penalize tokens already used.
+        repeat_penalty: How strongly to penalize repetitions.
+        num_ctx: Context window size.
+        
+    Any model-specific parameters can be provided through the constructor.
+    """
+
+    def __init__(self, **kwargs):
+        """Initialize model parameters.
+        
+        Args:
+            **kwargs: Parameter values to set. Only parameters explicitly
+                     set here will be sent to the API.
+        
+        Common parameters include:
+            temperature: Controls randomness (0.0-2.0)
+            max_tokens: Maximum number of tokens to generate
+            top_p: Nucleus sampling parameter (0.0-1.0) 
+            top_k: Limits token selection to top k options
+            stop: Sequences where the model should stop generating
+            frequency_penalty: Penalize frequent tokens (0.0-2.0)
+            presence_penalty: Penalize tokens already used (0.0-2.0)
+            repeat_penalty: How strongly to penalize repetitions
+            num_ctx: Context window size
+        """
+        # Store parameters that were explicitly set
+        self._parameters = {}
+        
+        # Common parameters
+        self._common_params = [
+            'temperature', 'max_tokens', 'top_p', 'top_k', 'stop',
+            'frequency_penalty', 'presence_penalty', 'repeat_penalty', 'num_ctx'
+        ]
+        
+        # Set provided parameters
+        for key, value in kwargs.items():
+            self._parameters[key] = value
+        
+    def __getattr__(self, name):
+        """Get a parameter value."""
+        if name in self._parameters:
+            return self._parameters[name]
+        raise AttributeError(f"'ModelParameters' object has no attribute '{name}'")
+    
+    def __setattr__(self, name, value):
+        """Set a parameter value."""
+        if name.startswith('_'):
+            # Private attributes
+            super().__setattr__(name, value)
+        else:
+            # Parameters
+            self._parameters[name] = value
+        
     def to_dict(self) -> Dict[str, Any]:
-        """Convert parameters to a dictionary format for the Ollama API."""
-        return {
-            "temperature": self.temperature,
-            "top_p": self.top_p,
-            "top_k": self.top_k,
-            "max_tokens": self.max_tokens,
-            "presence_penalty": self.presence_penalty,
-            "frequency_penalty": self.frequency_penalty,
-            "stop": self.stop_sequences if self.stop_sequences else None
+        """Convert parameters to a dictionary for API requests.
+        
+        Returns:
+            Dictionary of explicitly set parameters
+        """
+        params = {}
+        
+        # Map special parameter names to their API equivalents
+        api_param_mapping = {
+            'max_tokens': 'num_predict'
         }
+        
+        for key, value in self._parameters.items():
+            # Use API-specific name if it exists
+            api_key = api_param_mapping.get(key, key)
+            params[api_key] = value
+            
+        return params
 
 
 @dataclass

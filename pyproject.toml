@@ -24,9 +24,9 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/qv-ollama-sdk"
-"Bug Tracker" = "https://github.com/yourusername/qv-ollama-sdk/issues"
-"Documentation" = "https://github.com/yourusername/qv-ollama-sdk#readme"
+"Homepage" = "https://github.com/quantyverse/qv-ollama-sdk"
+"Bug Tracker" = "https://github.com/quantyverse/qv-ollama-sdk/issues"
+"Documentation" = "https://github.com/quantyverse/qv-ollama-sdk#readme"
 
 [project.optional-dependencies]
 dev = [

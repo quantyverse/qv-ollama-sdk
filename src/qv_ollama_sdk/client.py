@@ -113,6 +113,60 @@ class OllamaChatClient:
         Args:
             **kwargs: Parameter values to update
         """
+        # Set each parameter individually
         for key, value in kwargs.items():
-            if hasattr(self.parameters, key):
-                setattr(self.parameters, key, value) 
+            setattr(self.parameters, key, value)
+    
+    # Convenience properties for common parameters
+    
+    @property
+    def temperature(self) -> float:
+        """Get the current temperature parameter if set."""
+        try:
+            return self.parameters.temperature
+        except AttributeError:
+            return None
+        
+    @temperature.setter
+    def temperature(self, value: float) -> None:
+        """Set the temperature parameter."""
+        self.set_parameters(temperature=value)
+    
+    @property
+    def max_tokens(self) -> int:
+        """Get the current max_tokens parameter if set."""
+        try:
+            return self.parameters.max_tokens
+        except AttributeError:
+            return None
+        
+    @max_tokens.setter
+    def max_tokens(self, value: int) -> None:
+        """Set the max_tokens parameter."""
+        self.set_parameters(max_tokens=value)
+    
+    @property
+    def top_p(self) -> float:
+        """Get the current top_p parameter if set."""
+        try:
+            return self.parameters.top_p
+        except AttributeError:
+            return None
+        
+    @top_p.setter
+    def top_p(self, value: float) -> None:
+        """Set the top_p parameter."""
+        self.set_parameters(top_p=value)
+    
+    @property
+    def num_ctx(self) -> int:
+        """Get the current context window size if set."""
+        try:
+            return self.parameters.num_ctx
+        except AttributeError:
+            return None
+        
+    @num_ctx.setter
+    def num_ctx(self, value: int) -> None:
+        """Set the context window size."""
+        self.set_parameters(num_ctx=value) 
