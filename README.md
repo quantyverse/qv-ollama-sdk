@@ -56,28 +56,6 @@ for chunk in client.stream_chat("Explain quantum computing."):
     print(chunk, end="", flush=True)
 ```
 
-## Custom Model Parameters
-
-```python
-from qv_ollama_sdk import OllamaChatClient, ModelParameters
-
-# Initialize with specific parameters
-client = OllamaChatClient(
-    model_name="llama3",
-    parameters=ModelParameters(
-        temperature=0.7,    # Only parameters you explicitly set
-        max_tokens=500,     # will be sent to the Ollama API
-        repeat_penalty=1.1
-    )
-)
-
-# You can set model-specific parameters too
-client.set_parameters(
-    mirostat=1,           # These are model-specific parameters
-    mirostat_tau=4.0,     # that will be passed through to Ollama
-    seed=42               # if the model supports them
-)
-```
 
 ## Advanced Usage
 
