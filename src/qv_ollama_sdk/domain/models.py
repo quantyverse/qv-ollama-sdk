@@ -27,6 +27,27 @@ class Message:
             "role": self.role.value,
             "content": self.content
         }
+    
+    def to_db_dict(self) -> Dict[str, Any]:
+        """Convert message to a dictionary format for database storage."""
+        return {
+            "id": str(self.id),
+            "role": self.role.value,
+            "content": self.content,
+            "created_at": self.created_at.isoformat(),
+            "metadata": self.metadata
+        }
+    
+    @classmethod
+    def from_db_dict(cls, data: Dict[str, Any]) -> 'Message':
+        """Create a Message instance from database dictionary format."""
+        return cls(
+            id=UUID(data["id"]),
+            role=MessageRole(data["role"]),
+            content=data["content"],
+            created_at=datetime.fromisoformat(data["created_at"]),
+            metadata=data.get("metadata", {})
+        )
 
 
 @dataclass
@@ -69,6 +90,36 @@ class Conversation:
         """Clear all messages from the conversation."""
         self.messages.clear()
         self.updated_at = datetime.now()
+    
+    def to_db_dict(self) -> Dict[str, Any]:
+        """Convert conversation to a dictionary format for database storage.
+        
+        Note: Messages are stored separately and not included in this output.
+        """
+        return {
+            "id": str(self.id),
+            "model_name": self.model_name,
+            "title": self.title,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+            "metadata": self.metadata
+        }
+    
+    @classmethod
+    def from_db_dict(cls, data: Dict[str, Any]) -> 'Conversation':
+        """Create a Conversation instance from database dictionary format.
+        
+        Note: Messages must be loaded separately and added to the conversation.
+        """
+        return cls(
+            id=UUID(data["id"]),
+            model_name=data["model_name"],
+            title=data.get("title"),
+            messages=[],  # Messages are loaded separately
+            created_at=datetime.fromisoformat(data["created_at"]),
+            updated_at=datetime.fromisoformat(data["updated_at"]),
+            metadata=data.get("metadata", {})
+        )
 
 
 class ModelParameters:
