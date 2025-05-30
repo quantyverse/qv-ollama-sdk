@@ -1,12 +1,14 @@
 """High-level client for the QV Ollama SDK."""
 
-from typing import Optional, Dict, Any, List, Iterator
+from typing import Optional, Dict, Any, List, Iterator, Callable
 
 from .domain.models import (
     Conversation,
     ModelParameters,
     MessageRole,
-    GenerationResponse
+    GenerationResponse,
+    ToolCall,
+    ToolResult
 )
 from .services.ollama_conversation_service import OllamaConversationService
 
@@ -18,7 +20,6 @@ class OllamaChatClient:
         self,
         model_name: str = "gemma2:2b",
         system_message: Optional[str] = None,
-
         parameters: Optional[ModelParameters] = None
     ):
         """Initialize the Ollama chat client.
@@ -26,7 +27,6 @@ class OllamaChatClient:
         Args:
             model_name: The name of the model to use
             system_message: Optional system message to set the context
-            host: The host URL for the Ollama API (currently not used)
             parameters: Optional model parameters to use for generation
         """
         self.conversation = Conversation(model_name=model_name)
@@ -37,48 +37,121 @@ class OllamaChatClient:
         if system_message:
             self.conversation.add_system_message(system_message)
     
-    def chat(self, message: str) -> str:
+    def chat(self, message: str, tools: Optional[List[Callable]] = None, auto_execute: bool = True) -> GenerationResponse:
         """Send a message and get a response.
         
         Args:
             message: The user message to send
+            tools: Optional list of Python functions that can be called by the model
+            auto_execute: Whether to automatically execute tool calls (default: True)
             
         Returns:
-            The model's response text
+            A GenerationResponse containing content, thinking, tool calls, and results
         """
         # Add the user message
         self.conversation.add_user_message(message)
         
-        # Generate a response
-        response = self.service.generate_response(self.conversation, self.parameters)
-        
-        # Add the assistant's response to the conversation
-        self.conversation.add_assistant_message(response.content)
-        
-        return response.content
-    
-    def stream_chat(self, message: str) -> Iterator[str]:
+        if tools and auto_execute:
+            # Generate response with automatic tool execution
+            response = self.service.generate_response_with_tool_execution(
+                self.conversation, self.parameters, tools, auto_execute=True
+            )
+            
+            # Add the assistant's response to the conversation (including tool calls)
+            assistant_message = self.conversation.add_assistant_message(response.content)
+            if response.tool_calls:
+                assistant_message.tool_calls = response.tool_calls
+            
+            # Add tool result messages if any
+            if response.tool_results:
+                self.conversation.add_tool_results(response.tool_results)
+                
+            return response
+        else:
+            # Generate a response without automatic tool execution
+            response = self.service.generate_response(self.conversation, self.parameters, tools)
+            
+            # Add the assistant's response to the conversation (including tool calls)
+            assistant_message = self.conversation.add_assistant_message(response.content)
+            if response.tool_calls:
+                assistant_message.tool_calls = response.tool_calls
+            
+            return response
+
+    def stream_chat(self, message: str, tools: Optional[List[Callable]] = None, auto_execute: bool = True) -> Iterator[GenerationResponse]:
         """Send a message and stream the response.
         
         Args:
             message: The user message to send
+            tools: Optional list of Python functions that can be called by the model
+            auto_execute: Whether to automatically execute tool calls (default: True)
             
         Yields:
-            Chunks of the model's response as they become available
+            GenerationResponse chunks as they become available, including content, thinking, and tool calls
         """
         # Add the user message
         self.conversation.add_user_message(message)
         
-        # Collect the full response
-        full_response = ""
-        
-        # Stream the response
-        for chunk in self.service.stream_response(self.conversation, self.parameters):
-            full_response += chunk
-            yield chunk
-        
-        # Add the assistant's response to the conversation
-        self.conversation.add_assistant_message(full_response)
+        if tools and auto_execute:
+            # Collect responses for conversation history
+            initial_content = ""
+            final_content = ""
+            all_tool_calls = []
+            all_tool_results = []
+            
+            # Stream with automatic tool execution
+            for chunk in self.service.stream_response_with_tool_execution(
+                self.conversation, self.parameters, tools, auto_execute=True
+            ):
+                # Handle tool execution results
+                if chunk.tool_results:
+                    all_tool_results.extend(chunk.tool_results)
+                
+                # Handle content chunks
+                if chunk.content:
+                    if chunk.tool_calls or all_tool_calls:
+                        initial_content += chunk.content
+                    else:
+                        final_content += chunk.content
+                
+                # Collect tool calls
+                if chunk.tool_calls:
+                    all_tool_calls.extend(chunk.tool_calls)
+                
+                yield chunk
+            
+            # Add messages to conversation history
+            if initial_content or all_tool_calls:
+                assistant_message = self.conversation.add_assistant_message(initial_content)
+                if all_tool_calls:
+                    assistant_message.tool_calls = all_tool_calls
+            
+            if all_tool_results:
+                self.conversation.add_tool_results(all_tool_results)
+            
+            # If we have a final response, add it too
+            if final_content:
+                self.conversation.add_assistant_message(final_content)
+        else:
+            # Collect the full response and tool calls for conversation history
+            full_response = ""
+            all_tool_calls = []
+            
+            # Stream the response without automatic tool execution
+            for chunk in self.service.stream_response(self.conversation, self.parameters, tools):
+                if chunk.content:
+                    full_response += chunk.content
+                
+                # Collect tool calls from chunks
+                if chunk.tool_calls:
+                    all_tool_calls.extend(chunk.tool_calls)
+                    
+                yield chunk
+            
+            # Add the assistant's response to the conversation (including tool calls)
+            assistant_message = self.conversation.add_assistant_message(full_response)
+            if all_tool_calls:
+                assistant_message.tool_calls = all_tool_calls
     
     def get_history(self) -> List[Dict[str, str]]:
         """Get the conversation history.
@@ -169,4 +242,25 @@ class OllamaChatClient:
     @num_ctx.setter
     def num_ctx(self, value: int) -> None:
         """Set the context window size."""
-        self.set_parameters(num_ctx=value) 
+        self.set_parameters(num_ctx=value)
+    
+    @property
+    def thinking_mode(self) -> bool:
+        """Get the current thinking mode setting."""
+        try:
+            return self.parameters.think
+        except AttributeError:
+            return False
+        
+    @thinking_mode.setter
+    def thinking_mode(self, value: bool) -> None:
+        """Enable or disable thinking mode."""
+        self.set_parameters(think=value)
+    
+    def enable_thinking(self) -> None:
+        """Enable thinking mode for supported models."""
+        self.thinking_mode = True
+    
+    def disable_thinking(self) -> None:
+        """Disable thinking mode."""
+        self.thinking_mode = False 
