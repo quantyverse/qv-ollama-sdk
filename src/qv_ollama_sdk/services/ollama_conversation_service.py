@@ -57,7 +57,45 @@ class OllamaConversationService:
         if parameters and hasattr(parameters, 'think'):
             chat_kwargs["think"] = parameters.think
         
-        response = ollama.chat(**chat_kwargs)
+        # Try with full features first, fallback gracefully if model doesn't support them
+        try:
+            response = ollama.chat(**chat_kwargs)
+        except Exception as e:
+            error_msg = str(e).lower()
+            
+            # Check what features are causing issues
+            tools_unsupported = tools and ("tools" in error_msg or "does not support tools" in error_msg)
+            thinking_unsupported = "think" in chat_kwargs and ("think" in error_msg or "thinking" in error_msg)
+            
+            # Try different fallback strategies
+            if tools_unsupported and thinking_unsupported:
+                # Both features unsupported - remove both
+                chat_kwargs_fallback = chat_kwargs.copy()
+                if "tools" in chat_kwargs_fallback:
+                    del chat_kwargs_fallback["tools"]
+                if "think" in chat_kwargs_fallback:
+                    del chat_kwargs_fallback["think"]
+                response = ollama.chat(**chat_kwargs_fallback)
+            elif tools_unsupported:
+                # Only tools unsupported - remove tools, keep thinking
+                chat_kwargs_fallback = chat_kwargs.copy()
+                del chat_kwargs_fallback["tools"]
+                try:
+                    response = ollama.chat(**chat_kwargs_fallback)
+                except Exception as e2:
+                    # If still failing, also remove thinking
+                    if "think" in chat_kwargs_fallback:
+                        del chat_kwargs_fallback["think"]
+                        response = ollama.chat(**chat_kwargs_fallback)
+                    else:
+                        raise e2
+            elif thinking_unsupported:
+                # Only thinking unsupported - remove thinking, keep tools
+                chat_kwargs_fallback = chat_kwargs.copy()
+                del chat_kwargs_fallback["think"]
+                response = ollama.chat(**chat_kwargs_fallback)
+            else:
+                raise e
         
         # Extract the assistant's response
         content = response.get("message", {}).get("content", "")
@@ -199,7 +237,58 @@ class OllamaConversationService:
         if parameters and hasattr(parameters, 'think'):
             chat_kwargs["think"] = parameters.think
         
-        stream = ollama.chat(**chat_kwargs)
+        # Helper function to create and test a stream
+        def _create_stream_with_fallback(kwargs):
+            try:
+                stream = ollama.chat(**kwargs)
+                # Test stream by getting first chunk (this triggers the actual error)
+                stream_iter = iter(stream)
+                first_chunk = next(stream_iter)
+                # Return a generator that yields first chunk then continues with the rest
+                def stream_generator():
+                    yield first_chunk
+                    for chunk in stream_iter:
+                        yield chunk
+                return stream_generator()
+            except Exception as e:
+                error_msg = str(e).lower()
+                
+                # Check what features are causing issues
+                tools_unsupported = "tools" in kwargs and ("tools" in error_msg or "does not support tools" in error_msg)
+                thinking_unsupported = "think" in kwargs and ("think" in error_msg or "thinking" in error_msg)
+                
+                # Try different fallback strategies
+                if tools_unsupported and thinking_unsupported:
+                    # Both features unsupported - remove both
+                    fallback_kwargs = kwargs.copy()
+                    if "tools" in fallback_kwargs:
+                        del fallback_kwargs["tools"]
+                    if "think" in fallback_kwargs:
+                        del fallback_kwargs["think"]
+                    return ollama.chat(**fallback_kwargs)
+                elif tools_unsupported:
+                    # Only tools unsupported - remove tools, keep thinking
+                    fallback_kwargs = kwargs.copy()
+                    del fallback_kwargs["tools"]
+                    try:
+                        return _create_stream_with_fallback(fallback_kwargs)
+                    except Exception:
+                        # If still failing, also remove thinking
+                        if "think" in fallback_kwargs:
+                            del fallback_kwargs["think"]
+                            return ollama.chat(**fallback_kwargs)
+                        else:
+                            raise
+                elif thinking_unsupported:
+                    # Only thinking unsupported - remove thinking, keep tools
+                    fallback_kwargs = kwargs.copy()
+                    del fallback_kwargs["think"]
+                    return ollama.chat(**fallback_kwargs)
+                else:
+                    raise e
+        
+        # Get the stream with fallback handling
+        stream = _create_stream_with_fallback(chat_kwargs)
         
         for chunk in stream:
             content = ""

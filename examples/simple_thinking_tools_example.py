@@ -37,8 +37,8 @@ def main():
     response = client.chat("What is 15 + 27?", tools=tools)
     print(f"Question: What is 15 + 27?")
     print(f"Answer: {response.content}")
-    print(f"Tool calls made: {len(response.tool_calls) if response.tool_calls else 0}")
-    print(f"Tool results: {len(response.tool_results) if response.tool_results else 0}")
+    print(f"Tool calls made: {len(response.tool_calls) if response.tool_calls else 0} {response.tool_calls}")
+    print(f"Tool results: {len(response.tool_results) if response.tool_results else 0} {response.tool_results}")
     print("💡 Tools automatically executed!")
     
     # ===== EXAMPLE 3: Enable Thinking Mode =====
@@ -50,7 +50,7 @@ def main():
     
     response = client.chat("What is 25 + 18?", tools=tools)
     print(f"Question: What is 25 + 18?")
-    print(f"🧠 Thinking: {response.thinking[:150] if response.thinking else 'None'}...")
+    print(f"🧠 Thinking: {response.thinking if response.thinking else 'None'}...")
     print(f"💬 Answer: {response.content}")
     print("💡 Now shows AI's reasoning process!")
     
@@ -62,33 +62,32 @@ def main():
     print("Streaming response:")
     print()
     
-    thinking_buffer = ""
+    thinking_displayed = False
+    content_started = False
     content_chunks = 0
     tool_calls_made = []
-    content_started = False
     
     for chunk in client.stream_chat("Add 12 + 8, then tell me weather in Stuttgart", tools=tools):
-        # Handle thinking - show in blocks
+        # Handle thinking - clean one-time display
+        if chunk.thinking and not thinking_displayed:
+            print("🧠 Thinking: ", end="", flush=True)
+            thinking_displayed = True
+        
         if chunk.thinking:
-            thinking_buffer += chunk.thinking
-            
-            # Show thinking in blocks of ~150 characters or at sentence ends
-            if len(thinking_buffer) >= 150 or '. ' in thinking_buffer[-10:]:
-                if not content_started:  # Only show thinking before content starts
-                    print(f"🧠 Thinking: {thinking_buffer.strip()}")
-                    thinking_buffer = ""
+            print(chunk.thinking, end="", flush=True)
         
         # Handle tool calls
         if chunk.tool_calls:
             tool_calls_made.extend(chunk.tool_calls)
+            if thinking_displayed and not content_started:
+                print()  # Newline after thinking
             print(f"🛠️ Tool called: {chunk.tool_calls[0].function.name}({chunk.tool_calls[0].function.arguments})")
         
-        # Handle content - show on same line
+        # Handle content - clean display
         if chunk.content:
             if not content_started:
-                if thinking_buffer:  # Show remaining thinking
-                    print(f"🧠 Thinking: {thinking_buffer.strip()}")
-                    thinking_buffer = ""
+                if thinking_displayed:
+                    print()  # Newline after thinking
                 print("💬 Answer: ", end="", flush=True)
                 content_started = True
             

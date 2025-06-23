@@ -56,7 +56,7 @@ class OllamaChatClient:
             response = self.service.generate_response_with_tool_execution(
                 self.conversation, self.parameters, tools, auto_execute=True
             )
-            
+        
             # Add the assistant's response to the conversation (including tool calls)
             assistant_message = self.conversation.add_assistant_message(response.content)
             if response.tool_calls:
@@ -77,7 +77,7 @@ class OllamaChatClient:
                 assistant_message.tool_calls = response.tool_calls
             
             return response
-
+    
     def stream_chat(self, message: str, tools: Optional[List[Callable]] = None, auto_execute: bool = True) -> Iterator[GenerationResponse]:
         """Send a message and stream the response.
         
@@ -136,7 +136,7 @@ class OllamaChatClient:
             # Collect the full response and tool calls for conversation history
             full_response = ""
             all_tool_calls = []
-            
+        
             # Stream the response without automatic tool execution
             for chunk in self.service.stream_response(self.conversation, self.parameters, tools):
                 if chunk.content:
@@ -146,8 +146,8 @@ class OllamaChatClient:
                 if chunk.tool_calls:
                     all_tool_calls.extend(chunk.tool_calls)
                     
-                yield chunk
-            
+            yield chunk
+        
             # Add the assistant's response to the conversation (including tool calls)
             assistant_message = self.conversation.add_assistant_message(full_response)
             if all_tool_calls:
@@ -242,7 +242,7 @@ class OllamaChatClient:
     @num_ctx.setter
     def num_ctx(self, value: int) -> None:
         """Set the context window size."""
-        self.set_parameters(num_ctx=value)
+        self.set_parameters(num_ctx=value) 
     
     @property
     def thinking_mode(self) -> bool:

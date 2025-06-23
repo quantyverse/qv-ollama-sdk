@@ -384,7 +384,7 @@ class GenerationResponse:
     created_at: datetime = field(default_factory=datetime.now)
     raw_response: Optional[Dict[str, Any]] = None
     finish_reason: Optional[str] = None
-    usage: Optional[Dict[str, int]] = None
+    usage: Optional[Dict[str, int]] = None 
     tool_calls: Optional[List[ToolCall]] = None
     tool_results: Optional[List[ToolResult]] = None
     thinking: Optional[str] = None  # Model's thinking process (thinking mode) 
