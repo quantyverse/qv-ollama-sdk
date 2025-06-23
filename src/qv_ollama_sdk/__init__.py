@@ -7,7 +7,11 @@ from .domain.models import (
     Message,
     Conversation,
     ModelParameters,
-    GenerationResponse
+    GenerationResponse,
+    ToolCall,
+    Function,
+    ToolResult,
+    ToolRegistry
 )
 
 from .services.ollama_conversation_service import OllamaConversationService
@@ -20,6 +24,12 @@ __all__ = [
     "Conversation",
     "ModelParameters",
     "GenerationResponse",
+    # Tool Calling
+    "ToolCall",
+    "Function",
+    # Tool Execution
+    "ToolResult",
+    "ToolRegistry",
     
     # Services
     "OllamaConversationService",
