@@ -145,8 +145,7 @@ class OllamaChatClient:
                 # Collect tool calls from chunks
                 if chunk.tool_calls:
                     all_tool_calls.extend(chunk.tool_calls)
-                    
-            yield chunk
+                yield chunk
         
             # Add the assistant's response to the conversation (including tool calls)
             assistant_message = self.conversation.add_assistant_message(full_response)
@@ -242,7 +241,7 @@ class OllamaChatClient:
     @num_ctx.setter
     def num_ctx(self, value: int) -> None:
         """Set the context window size."""
-        self.set_parameters(num_ctx=value) 
+        self.set_parameters(num_ctx=value)
     
     @property
     def thinking_mode(self) -> bool:
