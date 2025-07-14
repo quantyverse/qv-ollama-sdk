@@ -145,7 +145,8 @@ class OllamaConversationService:
         conversation: Conversation,
         parameters: Optional[ModelParameters] = None,
         tools: Optional[List[Callable]] = None,
-        auto_execute: bool = True
+        auto_execute: bool = True,
+        tool_registry: Optional[ToolRegistry] = None
     ) -> GenerationResponse:
         """Generate a response with automatic tool execution.
         
@@ -154,6 +155,7 @@ class OllamaConversationService:
             parameters: Optional model parameters to use for generation
             tools: Optional list of Python functions that can be called by the model
             auto_execute: Whether to automatically execute tool calls and get final response
+            tool_registry: Optional pre-configured ToolRegistry (for MCP executors, etc.)
             
         Returns:
             A GenerationResponse with executed tool results and final response
@@ -165,10 +167,11 @@ class OllamaConversationService:
         if not initial_response.tool_calls or not auto_execute or not tools:
             return initial_response
         
-        # Create tool registry from provided tools
-        tool_registry = ToolRegistry()
-        for tool in tools:
-            tool_registry.register(tool)
+        # Use provided registry or create new one
+        if tool_registry is None:
+            tool_registry = ToolRegistry()
+            for tool in tools:
+                tool_registry.register(tool)
         
         # Execute tool calls
         tool_results = []
@@ -342,7 +345,8 @@ class OllamaConversationService:
         conversation: Conversation,
         parameters: Optional[ModelParameters] = None,
         tools: Optional[List[Callable]] = None,
-        auto_execute: bool = True
+        auto_execute: bool = True,
+        tool_registry: Optional[ToolRegistry] = None
     ) -> Iterator[GenerationResponse]:
         """Generate a streaming response with automatic tool execution.
         
@@ -351,6 +355,7 @@ class OllamaConversationService:
             parameters: Optional model parameters to use for generation
             tools: Optional list of Python functions that can be called by the model
             auto_execute: Whether to automatically execute tool calls and continue streaming
+            tool_registry: Optional pre-configured ToolRegistry (for MCP executors, etc.)
             
         Yields:
             GenerationResponse chunks, tool execution results, and final response chunks
@@ -373,10 +378,11 @@ class OllamaConversationService:
         if not collected_tool_calls or not auto_execute or not tools:
             return
         
-        # Create tool registry and execute tool calls
-        tool_registry = ToolRegistry()
-        for tool in tools:
-            tool_registry.register(tool)
+        # Use provided registry or create new one
+        if tool_registry is None:
+            tool_registry = ToolRegistry()
+            for tool in tools:
+                tool_registry.register(tool)
         
         tool_results = []
         for tool_call in collected_tool_calls:
