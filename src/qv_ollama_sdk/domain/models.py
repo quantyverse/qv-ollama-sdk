@@ -41,6 +41,7 @@ class ToolResult:
 class ToolRegistry:
     """Registry of available functions for tool execution."""
     functions: Dict[str, Callable] = field(default_factory=dict)
+    mcp_executors: Dict[str, Any] = field(default_factory=dict)  # MCP tool executors
     
     def register(self, func: Callable) -> None:
         """Register a function for tool calling."""
@@ -50,9 +51,53 @@ class ToolRegistry:
         """Get a registered function by name."""
         return self.functions.get(name)
     
+    def register_mcp_executor(self, tool_name: str, executor: Any) -> None:
+        """Register an MCP executor for a specific tool."""
+        self.mcp_executors[tool_name] = executor
+    
     def execute_tool_call(self, tool_call: ToolCall) -> ToolResult:
         """Execute a tool call and return the result."""
         function_name = tool_call.function.name
+        
+        # Check if tool has MCP executor first
+        if function_name in self.mcp_executors:
+            try:
+                executor = self.mcp_executors[function_name]
+                
+                # Threading wrapper to avoid deadlocks with async MCP execution
+                import asyncio
+                import threading
+                
+                result_container = []
+                
+                def thread_target():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        result = loop.run_until_complete(executor.execute_tool_call(tool_call))
+                        result_container.append(result)
+                    finally:
+                        loop.close()
+                
+                thread = threading.Thread(target=thread_target)
+                thread.start()
+                thread.join(timeout=30)  # 30 second timeout
+                
+                return ToolResult(
+                    tool_call_id=tool_call.id,
+                    function_name=function_name,
+                    result=result_container[0] if result_container else None,
+                    error=None
+                )
+            except Exception as e:
+                return ToolResult(
+                    tool_call_id=tool_call.id,
+                    function_name=function_name,
+                    result=None,
+                    error=f"MCP execution failed: {str(e)}"
+                )
+        
+        # Fall back to regular Python function execution
         function = self.get_function(function_name)
         
         if not function:

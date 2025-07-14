@@ -8,7 +8,8 @@ from .domain.models import (
     MessageRole,
     GenerationResponse,
     ToolCall,
-    ToolResult
+    ToolResult,
+    ToolRegistry
 )
 from .services.ollama_conversation_service import OllamaConversationService
 
@@ -32,6 +33,7 @@ class OllamaChatClient:
         self.conversation = Conversation(model_name=model_name)
         self.service = OllamaConversationService()
         self.parameters = parameters or ModelParameters()
+        self.tool_registry = ToolRegistry()  # Client's own tool registry
         
         # Add system message if provided
         if system_message:
@@ -54,7 +56,7 @@ class OllamaChatClient:
         if tools and auto_execute:
             # Generate response with automatic tool execution
             response = self.service.generate_response_with_tool_execution(
-                self.conversation, self.parameters, tools, auto_execute=True
+                self.conversation, self.parameters, tools, auto_execute=True, tool_registry=self.tool_registry
             )
         
             # Add the assistant's response to the conversation (including tool calls)
@@ -101,7 +103,7 @@ class OllamaChatClient:
             
             # Stream with automatic tool execution
             for chunk in self.service.stream_response_with_tool_execution(
-                self.conversation, self.parameters, tools, auto_execute=True
+                self.conversation, self.parameters, tools, auto_execute=True, tool_registry=self.tool_registry
             ):
                 # Handle tool execution results
                 if chunk.tool_results:
@@ -262,4 +264,8 @@ class OllamaChatClient:
     
     def disable_thinking(self) -> None:
         """Disable thinking mode."""
-        self.thinking_mode = False 
+        self.thinking_mode = False
+    
+    def register_mcp_executor(self, tool_name: str, executor: Any) -> None:
+        """Register an MCP executor for a specific tool."""
+        self.tool_registry.register_mcp_executor(tool_name, executor) 
