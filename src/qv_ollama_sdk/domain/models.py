@@ -68,7 +68,7 @@ class ToolRegistry:
                 return ToolResult(
                     tool_call_id=tool_call.id,
                     function_name=function_name,
-                    result=result_container[0] if result_container else None,
+                    result=result if result else None,
                     error=None
                 )
             except Exception as e:
