@@ -63,26 +63,8 @@ class ToolRegistry:
         if function_name in self.mcp_executors:
             try:
                 executor = self.mcp_executors[function_name]
-                
-                # Threading wrapper to avoid deadlocks with async MCP execution
-                import asyncio
-                import threading
-                
-                result_container = []
-                
-                def thread_target():
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    try:
-                        result = loop.run_until_complete(executor.execute_tool_call(tool_call))
-                        result_container.append(result)
-                    finally:
-                        loop.close()
-                
-                thread = threading.Thread(target=thread_target)
-                thread.start()
-                thread.join(timeout=30)  # 30 second timeout
-                
+                executor.execute_tool_call(tool_call)
+            
                 return ToolResult(
                     tool_call_id=tool_call.id,
                     function_name=function_name,
