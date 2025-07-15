@@ -63,12 +63,12 @@ class ToolRegistry:
         if function_name in self.mcp_executors:
             try:
                 executor = self.mcp_executors[function_name]
-                executor.execute_tool_call(tool_call)
+                result =executor.execute_tool_call(tool_call)
             
                 return ToolResult(
                     tool_call_id=tool_call.id,
                     function_name=function_name,
-                    result=result if result else None,
+                    result=result,
                     error=None
                 )
             except Exception as e:
