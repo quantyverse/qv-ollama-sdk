@@ -1,6 +1,6 @@
 [project]
 name = "qv-ollama-sdk"
-version = "0.9.1"
+version = "1.0.0"
 description = "A simple SDK for interacting with the Ollama API by automatically creating a conversation (chat history)"
 readme = "README.md"
 requires-python = ">=3.10"

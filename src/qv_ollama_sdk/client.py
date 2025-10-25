@@ -39,7 +39,7 @@ class OllamaChatClient:
         if system_message:
             self.conversation.add_system_message(system_message)
     
-    def chat(self, message: str, tools: Optional[List[Callable]] = None, auto_execute: bool = True) -> GenerationResponse:
+    def chat(self, message: str, tools: Optional[List[Callable]] = None, auto_execute: bool = True, images: Optional[List] = None) -> GenerationResponse:
         """Send a message and get a response.
         
         Args:
@@ -50,8 +50,8 @@ class OllamaChatClient:
         Returns:
             A GenerationResponse containing content, thinking, tool calls, and results
         """
-        # Add the user message
-        self.conversation.add_user_message(message)
+        # Add the user message (with optional images)
+        self.conversation.add_user_message(message, images=images)
         
         if tools and auto_execute:
             # Generate response with automatic tool execution
@@ -80,7 +80,7 @@ class OllamaChatClient:
             
             return response
     
-    def stream_chat(self, message: str, tools: Optional[List[Callable]] = None, auto_execute: bool = True) -> Iterator[GenerationResponse]:
+    def stream_chat(self, message: str, tools: Optional[List[Callable]] = None, auto_execute: bool = True, images: Optional[List] = None) -> Iterator[GenerationResponse]:
         """Send a message and stream the response.
         
         Args:
@@ -91,8 +91,8 @@ class OllamaChatClient:
         Yields:
             GenerationResponse chunks as they become available, including content, thinking, and tool calls
         """
-        # Add the user message
-        self.conversation.add_user_message(message)
+        # Add the user message (with optional images)
+        self.conversation.add_user_message(message, images=images)
         
         if tools and auto_execute:
             # Collect responses for conversation history

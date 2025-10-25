@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
-from typing import List, Optional, Dict, Any, Callable
+from typing import List, Optional, Dict, Any, Callable, Union
 from uuid import UUID, uuid4
 
 
@@ -127,6 +127,7 @@ class Message:
     """Represents a single message in a conversation."""
     role: MessageRole
     content: str
+    images: Optional[List[Union[str, bytes]]] = None
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=datetime.now)
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -140,6 +141,10 @@ class Message:
             "content": self.content
         }
         
+        # Add images for vision-enabled models
+        if self.images:
+            message_dict["images"] = self.images
+
         # Add tool_calls for assistant messages
         if self.tool_calls:
             message_dict["tool_calls"] = [
@@ -230,9 +235,9 @@ class Conversation:
         self.updated_at = datetime.now()
         return message
     
-    def add_user_message(self, content: str) -> Message:
+    def add_user_message(self, content: str, images: Optional[List] = None) -> Message:
         """Add a user message to the conversation."""
-        message = Message(role=MessageRole.USER, content=content)
+        message = Message(role=MessageRole.USER, content=content, images=images)
         self.messages.append(message)
         self.updated_at = datetime.now()
         return message
